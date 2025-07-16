@@ -10,74 +10,119 @@ import CoreData
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
-
+    
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
         animation: .default)
     private var items: FetchedResults<Item>
-
+    
     var body: some View {
-        NavigationView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp!, formatter: itemFormatter)")
-                    } label: {
-                        Text(item.timestamp!, formatter: itemFormatter)
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Задачи")
+                        .font(.system(size: 34, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal)
+                    Spacer()
+                }
+                .padding(.top)
+                
+                List {
+                    ForEach(items) { item in
+                        let shareText = "\(item.title ?? "Без названия")\n\n\(item.desc ?? "")"
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "circle")
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(.yellow)
+                                .padding(.top, 2)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(item.title ?? "Задача")
+                                        .foregroundColor(.white)
+                                        .bold()
+                                }
+                                Text(item.desc ?? "Описание")
+                                    .foregroundColor(.white)
+                                Text(item.timestamp!, formatter: itemFormatter)
+                                    .foregroundColor(.gray)
+                                    .font(.subheadline)
+                                
+                            }
+                        }
+                        .listRowBackground(Color.black)
+                        .contextMenu{
+                            Button {
+                                // Добавить действие редактирования
+                            } label: {
+                                Label("Редактировать", systemImage: "pencil")
+                            }
+                            
+                            ShareLink(item: shareText) {
+                                Label("Поделиться", systemImage: "square.and.arrow.up")
+                            }
+                            Button(role: .destructive) {
+                                delete(item)
+                            } label: {
+                                Label("Удалить", systemImage: "trash")
+                            }
+                        }
                     }
+                    .onDelete(perform: deleteItems)
                 }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
+                .scrollContentBackground(.hidden)
+                .background(Color.black)
+                .listStyle(.plain)
+                
+                HStack {
+                    Spacer()
+                    Text("\(items.count) Задач")
+                        .foregroundColor(.gray)
+                    Spacer()
                     Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 26))
+                            .foregroundColor(.yellow)
                     }
                 }
+                .padding()
+                .background(Color.black)
             }
-            Text("Select an item")
         }
     }
-
+    
     private func addItem() {
         withAnimation {
             let newItem = Item(context: viewContext)
             newItem.timestamp = Date()
-
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
+            try? viewContext.save()
         }
     }
-
+    
     private func deleteItems(offsets: IndexSet) {
         withAnimation {
             offsets.map { items[$0] }.forEach(viewContext.delete)
-
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
+            try? viewContext.save()
+        }
+    }
+    
+    private func delete(_ item: Item){
+        viewContext.delete(item)
+        do {
+            try viewContext.save()
+        } catch {
+            print(error.localizedDescription)
         }
     }
 }
 
 private let itemFormatter: DateFormatter = {
     let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .medium
+    formatter.dateFormat = "dd.MM.yy"
     return formatter
 }()
 
