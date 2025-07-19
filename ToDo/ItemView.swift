@@ -11,7 +11,6 @@ import CoreData
 struct ItemView: View {
     
     @Environment(\.managedObjectContext) private var viewContext
-    //@ObservedObject var item: Item
     @Environment(\.dismiss) private var dismiss
     
     var item: Item?
