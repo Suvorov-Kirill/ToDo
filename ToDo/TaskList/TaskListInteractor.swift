@@ -103,4 +103,13 @@ class TasksListInteractor {
     func loadNetworkTodos() async throws -> [ToDoTask] {
         try await NetworkManager.shared.fetchRequest()
     }
+    
+    func isFirstLaunch() -> Bool {
+        !UserDefaults.standard.bool(forKey: "didLoadTasksFromNetwork")
+    }
+    
+    func setDidLoadTasksFlag() {
+        UserDefaults.standard.set(true, forKey: "didLoadTasksFromNetwork")
+    }
+    
 }

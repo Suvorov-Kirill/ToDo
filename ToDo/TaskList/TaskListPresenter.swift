@@ -27,7 +27,10 @@ class TasksListPresenter: ObservableObject {
     }
     
     func fetchItems() {
-        items = interactor.fetchItems(context: context)
+        let items = interactor.fetchItems(context: context)
+        DispatchQueue.main.async {
+            self.items = items
+        }
     }
     
     func search(text: String) {
@@ -54,6 +57,16 @@ class TasksListPresenter: ObservableObject {
         fetchItems()
     }
     
+    func initialFetch() async {
+        if interactor.isFirstLaunch() {
+            await loadNetworkTodos()
+            interactor.setDidLoadTasksFlag()
+            fetchItems()
+        } else {
+            fetchItems()
+        }
+    }
+    
     func loadNetworkTodos() async {
         do {
             let todos = try await interactor.loadNetworkTodos()
@@ -70,28 +83,28 @@ class TasksListPresenter: ObservableObject {
         } catch {
             print(error.localizedDescription)
         }
-        
+    
     }
     
-        func startVoiceSearch() {
-            interactor.startSpeechRecognition(
-                onResult: { [weak self] text in
-                    DispatchQueue.main.async {
-                        self?.searchText = text
-                        self?.items = self?.interactor.searchItems(text: text, context: self?.context ?? NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)) ?? []
-                    }
-                },
-                onStateChange: { [weak self] listening in
-                    DispatchQueue.main.async {
-                        self?.isListening = listening
-                    }
+    func startVoiceSearch() {
+        interactor.startSpeechRecognition(
+            onResult: { [weak self] text in
+                DispatchQueue.main.async {
+                    self?.searchText = text
+                    self?.items = self?.interactor.searchItems(text: text, context: self?.context ?? NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)) ?? []
                 }
-            )
-        }
-        
-        func stopVoiceSearch() {
-            interactor.stopSpeechRecognition()
-            isListening = false
-        }
+            },
+            onStateChange: { [weak self] listening in
+                DispatchQueue.main.async {
+                    self?.isListening = listening
+                }
+            }
+        )
+    }
+    
+    func stopVoiceSearch() {
+        interactor.stopSpeechRecognition()
+        isListening = false
+    }
     
 }

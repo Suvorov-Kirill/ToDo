@@ -12,7 +12,6 @@ struct TasksListView: View {
     @ObservedObject var presenter: TasksListPresenter
     
     @FocusState private var isSearchFieldFocused: Bool
-    @State private var showActionSheet = false
     
     var body: some View {
         NavigationStack {
@@ -130,11 +129,7 @@ struct TasksListView: View {
                     Text("\(presenter.items.count) Задач")
                         .foregroundColor(.secondary)
                     Spacer()
-                    
-                    Button {
-                        showActionSheet = true
-                        
-                    } label: {
+                    NavigationLink(destination: ItemRouter.assemblemodule(item: nil, context: presenter.context)) {
                         Image(systemName: "square.and.pencil")
                             .font(.system(size: 26))
                             .foregroundColor(.yellow)
@@ -142,19 +137,9 @@ struct TasksListView: View {
                 }
                 .padding()
                 .background(Color(.systemBackground))
-                .confirmationDialog("Что сделать?", isPresented: $showActionSheet) {
-                    NavigationLink(destination: ItemRouter.assemblemodule(item: nil, context: presenter.context)) {
-                        Text("Создать новую задачу")
-                    }
-                    Button {
-                        Task{
-                            await presenter.loadNetworkTodos()
-                        }
-                    } label: {
-                        Text("Загрузить задачи")
-                    }
-                    Button("Отмена", role: .cancel) { }
-                }
+            }
+            .onAppear {
+                Task { await presenter.initialFetch() }
             }
         }
     }
