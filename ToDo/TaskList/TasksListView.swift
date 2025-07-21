@@ -1,5 +1,5 @@
 //
-//  ContentView.swift
+//  TasksListView.swift
 //  ToDo
 //
 //  Created by Kirill Suvorov on 16.07.2025.
@@ -8,20 +8,12 @@
 import SwiftUI
 import CoreData
 
-struct ContentView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-    @State private var searchText = ""
+struct TasksListView: View {
+    @ObservedObject var presenter: TasksListPresenter
+
     @FocusState private var isSearchFieldFocused: Bool
-
-    private var predicate: NSPredicate? {
-        searchText.isEmpty ? nil :
-        NSPredicate(format: "title CONTAINS[cd] %@ OR desc CONTAINS[cd] %@", searchText, searchText)
-    }
-
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
-        animation: .default
-    ) private var items: FetchedResults<Item>
+    @State private var searchText = ""
+    @State private var showActionSheet = false
 
     var body: some View {
         NavigationStack {
@@ -48,6 +40,9 @@ struct ContentView: View {
                         .foregroundColor(.primary)
                         .padding(.vertical, 8)
                         .focused($isSearchFieldFocused)
+                        .onChange(of: searchText) { _,_ in
+                            presenter.search(text: searchText)
+                        }
                 }
                 .padding(.horizontal)
                 .background(Color(.secondarySystemBackground))
@@ -57,17 +52,11 @@ struct ContentView: View {
 
                 // Список задач
                 List {
-                    ForEach(items) { item in
+                    ForEach(presenter.items) { item in
                         let shareText = "\(item.title ?? "Без названия")\n\n\(item.desc ?? "")"
-
                         HStack(alignment: .top, spacing: 12) {
                             Button {
-                                item.state.toggle()
-                                do {
-                                    try viewContext.save()
-                                } catch {
-                                    print(error.localizedDescription)
-                                }
+                                presenter.toggleState(for: item)
                             } label: {
                                 Image(systemName: item.state ? "checkmark.circle" : "circle")
                                     .resizable()
@@ -77,12 +66,12 @@ struct ContentView: View {
                             }
                             .buttonStyle(.plain)
 
-                            NavigationLink(destination: ItemView(item: item)) {
+                            NavigationLink(destination: ItemRouter.assemblemodule(item: item, context: presenter.context)) {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(item.title ?? "Задача")
                                         .foregroundColor(.primary)
                                         .bold()
-                                    Text(item.desc ?? "Описание")
+                                    Text(item.desc ?? "")
                                         .foregroundColor(.secondary)
                                     if let timestamp = item.timestamp {
                                         Text(timestamp, formatter: itemFormatter)
@@ -94,36 +83,37 @@ struct ContentView: View {
                         }
                         .listRowBackground(Color(.systemBackground))
                         .contextMenu {
-                            NavigationLink(destination: ItemView(item: item)) {
+                            NavigationLink(destination: ItemRouter.assemblemodule(item: item, context: presenter.context)) {
                                 Label("Редактировать", systemImage: "pencil")
                             }
                             ShareLink(item: shareText) {
                                 Label("Поделиться", systemImage: "square.and.arrow.up")
                             }
                             Button(role: .destructive) {
-                                delete(item)
+                                presenter.delete(item: item)
                             } label: {
                                 Label("Удалить", systemImage: "trash")
                             }
                         }
                     }
-                    .onDelete(perform: deleteItems)
+                    .onDelete(perform: presenter.deleteItems)
                 }
                 .scrollContentBackground(.hidden)
                 .background(Color(.systemBackground))
                 .listStyle(.plain)
                 .scrollDismissesKeyboard(.interactively)
-                .onChange(of: searchText) { _,_ in
-                    items.nsPredicate = predicate
-                }
 
                 // Нижняя панель
                 HStack {
                     Spacer()
-                    Text("\(items.count) Задач")
+                    Text("\(presenter.items.count) Задач")
                         .foregroundColor(.secondary)
                     Spacer()
-                    NavigationLink(destination: ItemView()) {
+                    
+                    Button {
+                        showActionSheet = true
+                        
+                    } label: {
                         Image(systemName: "square.and.pencil")
                             .font(.system(size: 26))
                             .foregroundColor(.yellow)
@@ -131,27 +121,20 @@ struct ContentView: View {
                 }
                 .padding()
                 .background(Color(.systemBackground))
-            }
-            .onAppear {
-                items.nsPredicate = predicate
+                .confirmationDialog("Что сделать?", isPresented: $showActionSheet) {
+                    NavigationLink(destination: ItemRouter.assemblemodule(item: nil, context: presenter.context)) {
+                        Text("Создать новую задачу")
+                    }
+                    Button {
+                        Task{
+                            await presenter.loadNetworkTodos()
+                        }
+                    } label: {
+                        Text("Загрузить задачи")
+                    }
+                    Button("Отмена", role: .cancel) { }
+                }
             }
         }
     }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            offsets.map { items[$0] }.forEach(viewContext.delete)
-            try? viewContext.save()
-        }
-    }
-
-    private func delete(_ item: Item) {
-        viewContext.delete(item)
-        try? viewContext.save()
-    }
-}
-
-#Preview {
-    ContentView()
-        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

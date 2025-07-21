@@ -16,6 +16,9 @@ struct ItemView: View {
     var item: Item?
     @State private var title = ""
     @State private var description = ""
+    var presenter: ItemPresenter?
+    
+    @State private var errorMessage: String?
     
     var body: some View {
         ScrollView {
@@ -33,6 +36,9 @@ struct ItemView: View {
                     .frame(minHeight: 200)
                     .scrollDisabled(true)
                 Spacer()
+                if let error = errorMessage {
+                    Text(error).foregroundStyle(.red).padding()
+                }
             }
         }
         .scrollDismissesKeyboard(.interactively)
@@ -42,11 +48,13 @@ struct ItemView: View {
                 title = item.title ?? ""
                 description = item.desc ?? ""
             }
+            presenter?.onSaved = { dismiss() }
+            presenter?.onError = { errorMessage = $0 }
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button {
-                    saveItem()
+                    presenter?.saveItem(item: item, title: title, description: description)
                 } label: {
                     HStack {
                         Image(systemName: "chevron.left")
@@ -58,27 +66,4 @@ struct ItemView: View {
         }
 
     }
-    private func saveItem(){
-        if item != nil {
-            item?.title = title
-            item?.desc = description
-            item?.timestamp = Date()
-        } else {
-            let newItem = Item(context: viewContext)
-            newItem.title = title
-            newItem.desc = description
-            newItem.timestamp = Date()
-            newItem.state = false
-        }
-        do {
-            try viewContext.save()
-            dismiss()
-        } catch {
-            print(error.localizedDescription)
-        }
-    }
-}
-
-#Preview {
-    ItemView()
 }

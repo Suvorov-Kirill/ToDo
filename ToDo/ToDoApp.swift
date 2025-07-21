@@ -13,8 +13,7 @@ struct ToDoApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+            TasksListRouter.assembleModule(context: persistenceController.container.viewContext)
         }
     }
 }
