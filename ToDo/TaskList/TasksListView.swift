@@ -10,11 +10,10 @@ import CoreData
 
 struct TasksListView: View {
     @ObservedObject var presenter: TasksListPresenter
-
+    
     @FocusState private var isSearchFieldFocused: Bool
-    @State private var searchText = ""
     @State private var showActionSheet = false
-
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -27,7 +26,7 @@ struct TasksListView: View {
                     Spacer()
                 }
                 .padding(.vertical)
-
+                
                 // Поисковая строка
                 HStack {
                     Button {
@@ -36,20 +35,42 @@ struct TasksListView: View {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.gray)
                     }
-                    TextField("Search", text: $searchText)
+                    TextField("Search", text: $presenter.searchText)
                         .foregroundColor(.primary)
                         .padding(.vertical, 8)
                         .focused($isSearchFieldFocused)
-                        .onChange(of: searchText) { _,_ in
-                            presenter.search(text: searchText)
+                        .onChange(of: presenter.searchText) { _,_ in
+                            presenter.search(text: presenter.searchText)
                         }
+                    if !presenter.searchText.isEmpty {
+                        Button {
+                            presenter.searchText = ""
+                            presenter.stopVoiceSearch()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                        }
+                        .foregroundColor(.gray)
+                    }
+                    Button(action: {
+                        if presenter.isListening {
+                            presenter.stopVoiceSearch()
+                        } else {
+                            presenter.startVoiceSearch()
+                        }
+                    }) {
+                        Image(systemName: presenter.isListening ? "mic.circle.fill" : "mic.fill")
+                            .foregroundColor(presenter.isListening ? .red : .gray)
+                            .scaleEffect(presenter.isListening ? 1.2 : 1.0)
+                            .animation(.easeInOut, value: presenter.isListening)
+                    }
+                    .padding(.leading, 4)
                 }
                 .padding(.horizontal)
                 .background(Color(.secondarySystemBackground))
                 .cornerRadius(10)
                 .padding(.horizontal)
                 .padding(.bottom, 8)
-
+                
                 // Список задач
                 List {
                     ForEach(presenter.items) { item in
@@ -65,7 +86,7 @@ struct TasksListView: View {
                                     .padding(.top, 2)
                             }
                             .buttonStyle(.plain)
-
+                            
                             NavigationLink(destination: ItemRouter.assemblemodule(item: item, context: presenter.context)) {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(item.title ?? "Задача")
@@ -102,7 +123,7 @@ struct TasksListView: View {
                 .background(Color(.systemBackground))
                 .listStyle(.plain)
                 .scrollDismissesKeyboard(.interactively)
-
+                
                 // Нижняя панель
                 HStack {
                     Spacer()

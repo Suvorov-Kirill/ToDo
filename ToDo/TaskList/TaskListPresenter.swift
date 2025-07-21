@@ -12,7 +12,8 @@ class TasksListPresenter: ObservableObject {
     @Published var items: [Item] = []
     let interactor: TasksListInteractor
     let context: NSManagedObjectContext
-    var searchText: String = ""
+    @Published var searchText: String = ""
+    @Published var isListening: Bool = false
     
     init(interactor: TasksListInteractor, context: NSManagedObjectContext) {
         self.interactor = interactor
@@ -71,4 +72,26 @@ class TasksListPresenter: ObservableObject {
         }
         
     }
+    
+        func startVoiceSearch() {
+            interactor.startSpeechRecognition(
+                onResult: { [weak self] text in
+                    DispatchQueue.main.async {
+                        self?.searchText = text
+                        self?.items = self?.interactor.searchItems(text: text, context: self?.context ?? NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)) ?? []
+                    }
+                },
+                onStateChange: { [weak self] listening in
+                    DispatchQueue.main.async {
+                        self?.isListening = listening
+                    }
+                }
+            )
+        }
+        
+        func stopVoiceSearch() {
+            interactor.stopSpeechRecognition()
+            isListening = false
+        }
+    
 }
